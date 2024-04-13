@@ -5,9 +5,9 @@ from tkinter import ttk
 import cv2
 import numpy as np
 import pytesseract
-import pygetwindow as gw
 import pyautogui
 import threading
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,6 +25,11 @@ class TextDetectionApp:
         else:
             raise EnvironmentError("Tesseract is not installed or not found in PATH.")
 
+        model_name = "michellejieli/NSFW_text_classifier"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
+
         self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
         self.label.pack(pady=10)
 
@@ -38,12 +43,13 @@ class TextDetectionApp:
         self.start_button['state'] = 'disabled'
         self.stop_button['state'] = 'normal'
         self.active = True
-        self.thread = threading.Thread(target=self.detect_text)
-        self.thread.start()
+        self.detect_text() # Testing code
+        #self.thread = threading.Thread(target=self.detect_text)
+        #self.thread.start()
 
     def stop_detection(self):
         self.active = False
-        self.thread.join()
+        #self.thread.join()
         self.start_button['state'] = 'normal'
         self.stop_button['state'] = 'disabled'
 
@@ -52,9 +58,36 @@ class TextDetectionApp:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            text = pytesseract.image_to_string(frame)
-            logging.info(f"Detected text: {text}")
+            results = pytesseract.image_to_data(frame, output_type=pytesseract.Output.DICT)
+            n_boxes = len(results['text'])
+            current_line_text = ""
+            last_y = 0
+            for i in range(n_boxes):
+                if int(results['conf'][i]) > 60:
+                    if abs(last_y - results['top'][i]) > 10:
+                        if current_line_text:
+                            self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                        current_line_text = results['text'][i]
+                    else:
+                        current_line_text += " " + results['text'][i]
+                    
+                    last_x, last_y, last_w, last_h = results['left'][i], results['top'][i], results['width'][i], results['height'][i]
+            
+            if current_line_text:
+                self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
 
+    def classify_and_log_text(self, text, x, y, w, h):
+        logging.info(text)
+        if self.is_inappropriate(text):
+            logging.info(f"Inappropriate text detected: {text} at position ({x}, {y}, {w}, {h})")
+        else:
+            logging.info("Appropriate text detected: " + text)
+    def is_inappropriate(self, text):
+        if text.strip():
+            results = self.nlp(text)
+            if (results[0]['label']=='NSFW') and results[0]['score']>0.75:
+                return True
+        return False
 
 if __name__ == '__main__':
     root = tk.Tk()
