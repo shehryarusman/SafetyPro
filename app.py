@@ -12,9 +12,10 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 logging.basicConfig(level=logging.INFO)
 
 class TextDetectionApp:
-    def __init__(self, master):
-        self.master = master
-        master.title("Real-Time Text Detection")
+    def __init__(self, hide_func):
+        self.hide_func = hide_func
+        # self.master = master
+        # master.title("Real-Time Text Detection")
 
         self.active = False
         self.thread = None  
@@ -23,25 +24,30 @@ class TextDetectionApp:
         if tesseract_path:
             pytesseract.pytesseract.tesseract_cmd = tesseract_path
         else:
-            raise EnvironmentError("Tesseract is not installed or not found in PATH.")
+            pytesseract.pytesseract.tesseract_cmd ='C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
         model_name = "michellejieli/NSFW_text_classifier"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
 
-        self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
-        self.label.pack(pady=10)
+        print("Run")
+        self.start_detection()
 
-        self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
-        self.start_button.pack(pady=5)
 
-        self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
-        self.stop_button.pack(pady=5)
+        # self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
+        # self.label.pack(pady=10)
+
+        # self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
+        # self.start_button.pack(pady=5)
+
+        # self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
+        # self.stop_button.pack(pady=5)
+
 
     def start_detection(self):
-        self.start_button['state'] = 'disabled'
-        self.stop_button['state'] = 'normal'
+        # self.start_button['state'] = 'disabled'
+        # self.stop_button['state'] = 'normal'
         self.active = True
         self.detect_text() # Testing code
         #self.thread = threading.Thread(target=self.detect_text)
@@ -50,17 +56,19 @@ class TextDetectionApp:
     def stop_detection(self):
         self.active = False
         #self.thread.join()
-        self.start_button['state'] = 'normal'
-        self.stop_button['state'] = 'disabled'
+        # self.start_button['state'] = 'normal'
+        # self.stop_button['state'] = 'disabled'
 
     def detect_text(self):
         while self.active:
+            print("Running")
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             results = pytesseract.image_to_data(frame, output_type=pytesseract.Output.DICT)
             n_boxes = len(results['text'])
             current_line_text = ""
+            toHide = False
             last_y = 0
             for i in range(n_boxes):
                 if int(results['conf'][i]) > 60:
@@ -76,11 +84,8 @@ class TextDetectionApp:
             if current_line_text:
                 toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
 
-            if toHide:
-                hideX = last_x
-                hideY = last_y
-                hideW = last_w
-                hideH = last_h
+            if toHide and self.hide_func != None:
+                self.hide_func(last_x, last_y, last_w, last_h)
             
 
     def classify_and_log_text(self, text, x, y, w, h):
@@ -101,5 +106,5 @@ class TextDetectionApp:
 
 if __name__ == '__main__':
     root = tk.Tk()
-    app = TextDetectionApp(root)
+    app = TextDetectionApp(root, None)
     root.mainloop()
