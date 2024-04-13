@@ -43,6 +43,9 @@ class MainWindow(QMainWindow):
     def addRect(self, x, y, w, h):
         self.rectangles.append(QtCore.QRect(x, y, w, h))
 
+    def clearRects(self):
+        self.rectangles.clear
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow(get_monitors()[0].width, get_monitors()[0].height)

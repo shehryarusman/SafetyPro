@@ -9,6 +9,14 @@ import pyautogui
 import threading
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
+# Used for drawing over screen
+import sys
+from PyQt5.QtWidgets import QApplication
+from screeninfo import get_monitors
+from mainWindow import MainWindow
+
+
+
 logging.basicConfig(level=logging.INFO)
 
 class TextDetectionApp:
@@ -38,6 +46,12 @@ class TextDetectionApp:
 
         self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
         self.stop_button.pack(pady=5)
+
+        # Handle to QT Window for drawing block over text
+        self.textBlockQA = QApplication(sys.argv)
+        self.textBlockWindow = MainWindow(get_monitors()[0].width, get_monitors()[0].height)
+        self.textBlockWindow.show()
+        self.textBlockQA.exec_()
 
     def start_detection(self):
         self.start_button['state'] = 'disabled'
@@ -77,10 +91,7 @@ class TextDetectionApp:
                 toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
 
             if toHide:
-                hideX = last_x
-                hideY = last_y
-                hideW = last_w
-                hideH = last_h
+                self.textBlockWindow.addRect(last_x, last_y, last_w, last_h)
             
 
     def classify_and_log_text(self, text, x, y, w, h):
