@@ -16,8 +16,8 @@ class TextDetectionApp:
         self.master = master
         master.title("Real-Time Text Detection")
 
-        self.active = False  
-        self.thread = None   
+        self.active = False
+        self.thread = None  
 
         tesseract_path = shutil.which("tesseract")
         if tesseract_path:
