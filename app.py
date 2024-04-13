@@ -12,10 +12,10 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 logging.basicConfig(level=logging.INFO)
 
 class TextDetectionApp:
-    def __init__(self, master, hide_func):
+    def __init__(self, hide_func):
         self.hide_func = hide_func
-        self.master = master
-        master.title("Real-Time Text Detection")
+        # self.master = master
+        # master.title("Real-Time Text Detection")
 
         self.active = False  
         self.thread = None   
@@ -31,19 +31,23 @@ class TextDetectionApp:
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
 
-        self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
-        self.label.pack(pady=10)
+        print("Run")
+        self.start_detection()
 
-        self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
-        self.start_button.pack(pady=5)
 
-        self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
-        self.stop_button.pack(pady=5)
+        # self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
+        # self.label.pack(pady=10)
+
+        # self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
+        # self.start_button.pack(pady=5)
+
+        # self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
+        # self.stop_button.pack(pady=5)
 
 
     def start_detection(self):
-        self.start_button['state'] = 'disabled'
-        self.stop_button['state'] = 'normal'
+        # self.start_button['state'] = 'disabled'
+        # self.stop_button['state'] = 'normal'
         self.active = True
         self.detect_text() # Testing code
         #self.thread = threading.Thread(target=self.detect_text)
@@ -52,11 +56,12 @@ class TextDetectionApp:
     def stop_detection(self):
         self.active = False
         #self.thread.join()
-        self.start_button['state'] = 'normal'
-        self.stop_button['state'] = 'disabled'
+        # self.start_button['state'] = 'normal'
+        # self.stop_button['state'] = 'disabled'
 
     def detect_text(self):
         while self.active:
+            print("Running")
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
