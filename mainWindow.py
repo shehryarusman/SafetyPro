@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
             )
         )
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
 
         self.rectangles = []
         # Need to add rectangles with locations to cover
