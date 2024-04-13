@@ -27,7 +27,7 @@ class TextDetectionApp:
         else:
             pytesseract.pytesseract.tesseract_cmd ='C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
-        model_name = "michellejieli/NSFW_text_classifier"
+        model_name = "JungleLee/bert-toxic-comment-classification"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
@@ -47,6 +47,11 @@ class TextDetectionApp:
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            # _, binary_image = cv2.threshold(frame, 127, 255, cv2.THRESH_BINARY)
+            # frame = cv2.bitwise_not(binary_image)
+            # cv2.imshow("Frame", frame)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
             results = pytesseract.image_to_data(frame, output_type=pytesseract.Output.DICT)
             n_boxes = len(results['text'])
             current_line_text = ""
@@ -54,15 +59,12 @@ class TextDetectionApp:
             last_y = 0
             self.clear_func()
             for i in range(n_boxes):
-                if int(results['conf'][i]) > 90:
-                    if abs(last_y - results['top'][i]) > 10:
-                        if current_line_text:
-                            toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
-                            if toHide and self.hide_func != None:
-                                self.hide_func(last_x, last_y + 30, last_w, last_h)
-                        current_line_text = results['text'][i]
-                    else:
-                        current_line_text += " " + results['text'][i]
+                if int(results['conf'][i]) > 70:
+                    if current_line_text:
+                        toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                        if toHide and self.hide_func != None:
+                            self.hide_func(last_x, last_y + 30, last_w, last_h)
+                    current_line_text = results['text'][i]
                     
                     last_x, last_y, last_w, last_h = results['left'][i], results['top'][i], results['width'][i], results['height'][i]
                     
@@ -71,16 +73,16 @@ class TextDetectionApp:
 
     def classify_and_log_text(self, text, x, y, w, h):
         if self.is_inappropriate(text):
-            logging.info(f"Inappropriate text detected: {text} at position ({x}, {y}, {w}, {h})")
             return True
         else:
-            #logging.info("Appropriate text detected: " + text)
             return False
 
     def is_inappropriate(self, text):
         if text.strip():
             results = self.nlp(text)
-            if (results[0]['label']=='NSFW') and results[0]['score']>0.95:
+            # print(results[0]['label'], results[0]['score'])
+            if (results[0]['label']=='toxic') and results[0]['score']>0.80:
+                print(f"Inappropriate text detected: {text} score {results[0]['score']}")
                 return True
         return False
 
