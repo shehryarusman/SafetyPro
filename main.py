@@ -9,16 +9,13 @@ from screeninfo import get_monitors
 from mainWindow import MainWindow
 from threading import Thread
 
-def runTextDetection(hide_func):
-    app = TextDetectionApp(hide_func)
-    # root.mainloop()
-
+def runTextDetection(hide_func, clear_func):
+    app = TextDetectionApp(hide_func, clear_func)
 
 if __name__ == "__main__":
     qApp = QApplication(sys.argv)
     qWindow = MainWindow(get_monitors()[0].width, get_monitors()[0].height)
-    # root = tk.Tk()
-    textDecThread = Thread(target=runTextDetection, args=(qWindow.addRect,))
+    textDecThread = Thread(target=runTextDetection, args=(qWindow.addRect,qWindow.clearRects))
     textDecThread.start()
     qWindow.show()
     qApp.exec_()

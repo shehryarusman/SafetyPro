@@ -12,8 +12,9 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 logging.basicConfig(level=logging.INFO)
 
 class TextDetectionApp:
-    def __init__(self, hide_func):
+    def __init__(self, hide_func, clear_func):
         self.hide_func = hide_func
+        self.clear_func = clear_func
         # self.master = master
         # master.title("Real-Time Text Detection")
 
@@ -31,37 +32,18 @@ class TextDetectionApp:
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
 
-        print("Run")
         self.start_detection()
 
 
-        # self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
-        # self.label.pack(pady=10)
-
-        # self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
-        # self.start_button.pack(pady=5)
-
-        # self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
-        # self.stop_button.pack(pady=5)
-
-
     def start_detection(self):
-        # self.start_button['state'] = 'disabled'
-        # self.stop_button['state'] = 'normal'
         self.active = True
         self.detect_text() # Testing code
-        #self.thread = threading.Thread(target=self.detect_text)
-        #self.thread.start()
 
     def stop_detection(self):
         self.active = False
-        #self.thread.join()
-        # self.start_button['state'] = 'normal'
-        # self.stop_button['state'] = 'disabled'
 
     def detect_text(self):
         while self.active:
-            print("Running")
             screenshot = pyautogui.screenshot()
             frame = np.array(screenshot)
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -70,37 +52,35 @@ class TextDetectionApp:
             current_line_text = ""
             toHide = False
             last_y = 0
+            self.clear_func()
             for i in range(n_boxes):
-                if int(results['conf'][i]) > 60:
+                if int(results['conf'][i]) > 90:
                     if abs(last_y - results['top'][i]) > 10:
                         if current_line_text:
-                            self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                            toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                            if toHide and self.hide_func != None:
+                                self.hide_func(last_x, last_y + 30, last_w, last_h)
                         current_line_text = results['text'][i]
                     else:
                         current_line_text += " " + results['text'][i]
                     
                     last_x, last_y, last_w, last_h = results['left'][i], results['top'][i], results['width'][i], results['height'][i]
-            
-            if current_line_text:
-                toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                    
 
-            if toHide and self.hide_func != None:
-                self.hide_func(last_x, last_y, last_w, last_h)
             
 
     def classify_and_log_text(self, text, x, y, w, h):
-        logging.info(text)
         if self.is_inappropriate(text):
             logging.info(f"Inappropriate text detected: {text} at position ({x}, {y}, {w}, {h})")
             return True
         else:
-            logging.info("Appropriate text detected: " + text)
+            #logging.info("Appropriate text detected: " + text)
             return False
 
     def is_inappropriate(self, text):
         if text.strip():
             results = self.nlp(text)
-            if (results[0]['label']=='NSFW') and results[0]['score']>0.75:
+            if (results[0]['label']=='NSFW') and results[0]['score']>0.95:
                 return True
         return False
 
