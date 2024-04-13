@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         qp = QtGui.QPainter()
         qp.begin(self)
         # Change color here to actually cover after debugging is done
-        qp.setBrush(QtGui.QBrush(QtGui.QColor(255, 0, 0, 150), QtCore.Qt.SolidPattern))
+        qp.setBrush(QtGui.QBrush(QtGui.QColor(200, 0, 100, 150), QtCore.Qt.SolidPattern))
         qp.drawRects(self.rectangles)
         qp.end()
     
@@ -41,12 +41,14 @@ class MainWindow(QMainWindow):
         if event.key() == QtCore.Qt.Key_Q:
             print("Exiting")
             QtWidgets.qApp.quit()
+            exit()
 
     def addRect(self, x, y, w, h):
         self.rectangles.append(QtCore.QRect(x, y, w, h))
+        self.update()
 
     def clearRects(self):
-        self.rectangles.clear
+        self.rectangles.clear()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
