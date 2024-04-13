@@ -2,6 +2,7 @@ altgraph==0.17.4
 certifi==2024.2.2
 charset-normalizer==3.3.2
 colorama==0.4.6
+Cython==3.0.10
 filelock==3.13.4
 fsspec==2024.3.1
 huggingface-hub==0.22.2

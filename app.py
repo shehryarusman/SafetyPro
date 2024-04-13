@@ -9,18 +9,11 @@ import pyautogui
 import threading
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
-# Used for drawing over screen
-import sys
-from PyQt5.QtWidgets import QApplication
-from screeninfo import get_monitors
-from mainWindow import MainWindow
-
-
-
 logging.basicConfig(level=logging.INFO)
 
 class TextDetectionApp:
-    def __init__(self, master):
+    def __init__(self, master, hide_func):
+        self.hide_func = hide_func
         self.master = master
         master.title("Real-Time Text Detection")
 
@@ -31,7 +24,7 @@ class TextDetectionApp:
         if tesseract_path:
             pytesseract.pytesseract.tesseract_cmd = tesseract_path
         else:
-            raise EnvironmentError("Tesseract is not installed or not found in PATH.")
+            pytesseract.pytesseract.tesseract_cmd ='C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
         model_name = "michellejieli/NSFW_text_classifier"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -47,11 +40,6 @@ class TextDetectionApp:
         self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
         self.stop_button.pack(pady=5)
 
-        # Handle to QT Window for drawing block over text
-        self.textBlockQA = QApplication(sys.argv)
-        self.textBlockWindow = MainWindow(get_monitors()[0].width, get_monitors()[0].height)
-        self.textBlockWindow.show()
-        self.textBlockQA.exec_()
 
     def start_detection(self):
         self.start_button['state'] = 'disabled'
@@ -75,6 +63,7 @@ class TextDetectionApp:
             results = pytesseract.image_to_data(frame, output_type=pytesseract.Output.DICT)
             n_boxes = len(results['text'])
             current_line_text = ""
+            toHide = False
             last_y = 0
             for i in range(n_boxes):
                 if int(results['conf'][i]) > 60:
@@ -90,8 +79,8 @@ class TextDetectionApp:
             if current_line_text:
                 toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
 
-            if toHide:
-                self.textBlockWindow.addRect(last_x, last_y, last_w, last_h)
+            if toHide and self.hide_func != None:
+                self.hide_func(last_x, last_y, last_w, last_h)
             
 
     def classify_and_log_text(self, text, x, y, w, h):
@@ -112,5 +101,5 @@ class TextDetectionApp:
 
 if __name__ == '__main__':
     root = tk.Tk()
-    app = TextDetectionApp(root)
+    app = TextDetectionApp(root, None)
     root.mainloop()
