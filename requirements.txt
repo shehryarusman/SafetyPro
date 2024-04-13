@@ -1,6 +1,7 @@
 altgraph==0.17.4
 certifi==2024.2.2
 charset-normalizer==3.3.2
+Cython==3.0.10
 filelock==3.13.4
 fsspec==2024.3.1
 huggingface-hub==0.22.2
@@ -21,6 +22,9 @@ pyinstaller==6.6.0
 pyinstaller-hooks-contrib==2024.4
 PyMsgBox==1.0.9
 pyperclip==1.8.2
+PyQt5==5.15.10
+PyQt5-Qt5==5.15.13
+PyQt5-sip==12.13.0
 PyRect==0.2.0
 PyScreeze==0.1.30
 pytesseract==0.3.10
@@ -30,6 +34,7 @@ regex==2023.12.25
 requests==2.31.0
 rubicon-objc==0.4.8
 safetensors==0.4.2
+screeninfo==0.8.1
 sympy==1.12
 tokenizers==0.15.2
 torch==2.2.2
