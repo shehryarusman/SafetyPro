@@ -74,14 +74,24 @@ class TextDetectionApp:
                     last_x, last_y, last_w, last_h = results['left'][i], results['top'][i], results['width'][i], results['height'][i]
             
             if current_line_text:
-                self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+                toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+
+            if toHide:
+                hideX = last_x
+                hideY = last_y
+                hideW = last_w
+                hideH = last_h
+            
 
     def classify_and_log_text(self, text, x, y, w, h):
         logging.info(text)
         if self.is_inappropriate(text):
             logging.info(f"Inappropriate text detected: {text} at position ({x}, {y}, {w}, {h})")
+            return True
         else:
             logging.info("Appropriate text detected: " + text)
+            return False
+
     def is_inappropriate(self, text):
         if text.strip():
             results = self.nlp(text)
