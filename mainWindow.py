@@ -25,7 +25,6 @@ class MainWindow(QMainWindow):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
 
         self.rectangles = []
-        self.addRect(10, 100, 100, 100)
         # Need to add rectangles with locations to cover
         # then update painter and it should be over the word we want
 
@@ -45,7 +44,6 @@ class MainWindow(QMainWindow):
 
     def addRect(self, x, y, w, h):
         self.rectangles.append(QtCore.QRect(x, y, w, h))
-        self.update()
 
     def clearRects(self):
         self.rectangles.clear()
