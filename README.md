@@ -1,4 +1,4 @@
-Safety Pro 🛡️
+# Safety Pro 🛡️
 
 Welcome to Safety Pro, your ultimate guardian against harmful digital content! 🌐 Safety Pro is designed to protect users, especially young internet surfers, from inappropriate and dangerous content in real time. Leveraging cutting-edge AI and ML technologies, this tool ensures a safer browsing experience by scanning and filtering out harmful material before it reaches the viewer. 🚀
 
