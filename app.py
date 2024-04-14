@@ -13,7 +13,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 
 logging.basicConfig(level=logging.INFO)
 
-nthreads = 8
+nthreads = 12
 
 class TextDetectionApp:
     def __init__(self, hide_func, clear_func, update_func):
@@ -43,36 +43,28 @@ class TextDetectionApp:
         camera.start()
         while self.active:
             self.update_func()
-            # cv2.imshow("Frame", frame)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
-            # tic = time.perf_counter()
-            # results = pytesseract.image_to_data(cv2.cvtColor(camera.grab(), cv2.COLOR_RGB2BGR), output_type=pytesseract.Output.DICT)
-            # toc = time.perf_counter()
-            # print("Time to convert with camera.grab  ", (toc - tic))
-            # tic = time.perf_counter()
-            # results = pytesseract.image_to_data(cv2.cvtColor(np.array(pyautogui.screenshot()), cv2.COLOR_RGB2BGR), output_type=pytesseract.Output.DICT)
-            # toc = time.perf_counter()
-            # print("Time to convert with pyautogui ", (toc - tic))
 
             tic = time.perf_counter()
-            results = pytesseract.image_to_data(cv2.cvtColor(camera.get_latest_frame(), cv2.COLOR_RGB2BGR), output_type=pytesseract.Output.DICT)
+            results = pytesseract.image_to_data(cv2.cvtColor(camera.get_latest_frame(), cv2.COLOR_RGB2GRAY), output_type=pytesseract.Output.DICT)
             toc = time.perf_counter()
             print("Time to convert with get_latest_frame ", (toc - tic))
 
             tic = time.perf_counter()
 
             n_boxes = len(results['text'])
-            self.clear_func()
+            texts = results['text']
+            texts = list(filter(None, texts))
+
             words_index = []
             t_threads = []
             index_results = [[] for i in range(nthreads)]
             split = n_boxes // nthreads
             start = 0
+
             for i in range(nthreads):
+                #print(f'Thread: {i} \nresults:{results['text'][start:(start + split)]} \nStart: {start} \nSplit: {split}')
                 if (i < (nthreads - 1)):
-                    t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:split], start, index_results[i])))
+                    t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:(start + split)], start, index_results[i])))
                 else:
                     t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:], start + (n_boxes % split), index_results[i])))
                 start += split
@@ -82,16 +74,15 @@ class TextDetectionApp:
                 t_threads[i].join()
                 words_index += index_results[i]
 
+            self.clear_func()
             for i in words_index:
-                self.hide_func(results['left'][i], results['top'][i] + 30, results['width'][i], results['height'][i])
-            self.update_func()
+                self.hide_func(results['left'][i], results['top'][i]+26, results['width'][i], results['height'][i])
             toc = time.perf_counter()
             print("Time to parse ", (toc - tic))
         camera.stop()
 
     def classify_thread_arr(self, text_arr, start, result):
         for i, text in enumerate(text_arr):
-            print(text)
             nlpResult = self.nlp(text)
             if ((nlpResult[0]['label']=='toxic') and nlpResult[0]['score']>0.80):
                 result.append(start + i)
