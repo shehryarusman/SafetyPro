@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
 
     def addRect(self, x, y, w, h):
         self.rectangles.append(QtCore.QRect(x, y, w, h))
-        self.update()
+        #self.update()
 
     def clearRects(self):
         self.rectangles.clear()
