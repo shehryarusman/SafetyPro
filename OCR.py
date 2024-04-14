@@ -14,11 +14,10 @@ from screeninfo import get_monitors
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import pyqtSignal, QObject, QRect
 from PyQt5.QtGui import QPainter, QColor, QImage, QPixmap
 
-from PyQt5.QtWidgets import QApplication, QMainWindow
-
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
 
 from PIL import Image, ImageTk
 
@@ -33,13 +32,6 @@ from text_classification import TextDetectionApp
 textDetectApp = TextDetectionApp()
 
 def tesseract_location(root):
-    """
-    Sets the tesseract cmd root and exits is the root is not set correctly
-
-    Tesseract needs a pointer to exec program included in the install.
-    Example: User/Documents/tesseract/4.1.1/bin/tesseract
-    See tesseract documentation for help.
-    """
     try:
         pytesseract.pytesseract.tesseract_cmd = root
     except FileNotFoundError:
@@ -166,6 +158,7 @@ class OCR:
         self.height = None
         self.crop_width = None
         self.crop_height = None
+        self.frame = None
 
     def start(self):
         """
@@ -197,6 +190,7 @@ class OCR:
         while not self.stopped:
             if self.exchange is not None:  # Defends against an undefined VideoStream reference
                 frame = self.exchange.frame
+                self.frame = frame
 
                 # # # CUSTOM FRAME PRE-PROCESSING GOES HERE # # #
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -312,15 +306,14 @@ def put_ocr_boxes(boxes, frame, height, width, crop_width=0, crop_height=0, view
     if view_mode not in [1, 2, 3, 4]:
         raise Exception("A nonexistent view mode was selected. Only modes 1-4 are available")
 
+    rects = []
     text = ''  # Initializing a string which will later be appended with the detected text
     transparent_img = numpy.zeros((height, width, 4), dtype=numpy.uint8)
     if boxes is not None:  # Defends against empty data from tesseract image_to_data
-        tic = time.perf_counter()
         badBoxIndices = textDetectApp.detect_text(boxes)
-        toc = time.perf_counter()
-        print(toc-tic)
         for i in badBoxIndices:  # Next three lines turn data into a list
             x, y, w, h = int(boxes['left'][i]), int(boxes['top'][i]), int(boxes['width'][i]), int(boxes['height'][i])
+            rects.append(QRect(x, y, w, h))
             conf = boxes['conf'][i]
             x += crop_width  # If tesseract was performed on a cropped image we need to 'convert' to full frame
             y += crop_height
@@ -342,7 +335,8 @@ def put_ocr_boxes(boxes, frame, height, width, crop_width=0, crop_height=0, view
         #             if int(float(conf)) > conf_thresh:
         #                 cv2.rectangle(transparent_img, (x, y), (w + x, h + y), color, thickness=1)
         #                 text = text + ' ' + word
-    return transparent_img, text
+            
+    return transparent_img, text, rects
 
 
 def put_crop_box(frame: numpy.ndarray, width: int, height: int, crop_width: int, crop_height: int):
@@ -413,16 +407,24 @@ class OverlayWindow(QMainWindow):
         self.show()
 
     def paintEvent(self, event):
-        qp = QPainter(self)
         if self.image:
+            qp = QPainter(self)
             qp.drawImage(self.rect(), self.image)
         
 
     def update_image(self, img):
         self.image = img
         self.update()
-        print("********* DRAWING BOXES *********")
 
+    def updateMask(self, rectangles):
+        self.mask_pixmap = QtGui.QPixmap(self.size())
+        self.mask_pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(self.mask_pixmap)
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(200, 0, 100, 150), QtCore.Qt.SolidPattern))
+        for rect in rectangles:
+            painter.drawRect(rect)
+        painter.end()
+        self.update()
 
 
 
@@ -446,17 +448,27 @@ class MainWindow(QMainWindow):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
 
-        self.rectangles = []
+        self.mask_pixmap = None
+        self.mask_rect = QtCore.QRect()
         # Need to add rectangles with locations to cover
         # then update painter and it should be over the word we want
 
     def paintEvent(self, event):
         qp = QtGui.QPainter()
         qp.begin(self)
-        # Change color here to actually cover after debugging is done
-        qp.setBrush(QtGui.QBrush(QtGui.QColor(200, 0, 100, 150), QtCore.Qt.SolidPattern))
-        qp.drawRects(self.rectangles)
+        if self.mask_pixmap:
+            qp.drawPixmap(self.rect(), self.mask_pixmap)
         qp.end()
+
+    def updateMask(self, rectangles):
+        self.mask_pixmap = QPixmap(self.size())
+        self.mask_pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(self.mask_pixmap)
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(200, 0, 100, 150), QtCore.Qt.SolidPattern))
+        for rect in rectangles:
+            painter.drawRect(rect)
+        painter.end()
+        self.update()
     
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Q:
@@ -468,27 +480,32 @@ class MainWindow(QMainWindow):
         self.rectangles.append(QtCore.QRect(x, y, w, h))
 
     def clearRects(self):
+        return
         self.rectangles.clear()
-
 
 def update_frame(video_stream, ocr, overlay_window, view_mode):
     while not video_stream.stopped and not ocr.stopped:
-        frame = video_stream.frame
+        #frame = video_stream.frame
+        frame = ocr.frame
         frame = cv2.resize(frame, (1920//2, 1080//2), interpolation=cv2.INTER_AREA)
         img_hi = video_stream.mon['height']
         img_wi = video_stream.mon['width']
         # print(ocr.boxes)
-        frame, text = put_ocr_boxes(ocr.boxes, frame, img_hi, img_wi, view_mode=view_mode)
+        frame, text, rects = put_ocr_boxes(ocr.boxes, frame, img_hi, img_wi, view_mode=view_mode)
 
         # Convert frame to QImage
         frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
         h, w, ch = frame_rgba.shape
         bytes_per_line = ch * w
-        qt_image = QImage(frame_rgba.data, w, h, bytes_per_line, QImage.Format_RGBA8888)
+        qt_image = QImage(frame_rgba.data, 1920, 1080, bytes_per_line, QImage.Format_RGBA8888)
 
-        overlay_window.update_image_signal.emit(qt_image)  # Emit the signal
 
-        QtCore.QThread.msleep(250)  # Refresh rate
+        #overlay_window.updateMask(rects)
+        overlay_window.update_image(qt_image)
+        #overlay_window.update_image(qt_image)
+        #overlay_window.update_image_signal.emit(qt_image)  # Emit the signal
+
+        QtCore.QThread.msleep(150)  # Refresh rate
 
 
 def ocr_stream(crop: list[int, int], source: int = 0, view_mode: int = 1, language=None):
@@ -501,7 +518,6 @@ def ocr_stream(crop: list[int, int], source: int = 0, view_mode: int = 1, langua
         cropx, cropy = crop[0], crop[1]
         if cropx > img_wi or cropy > img_hi or cropx < 0 or cropy < 0:
             cropx, cropy = 0, 0
-            print("Impossible crop dimensions supplied. Dimensions reverted to 0, 0")
 
     ocr = OCR().start()
     ocr.set_exchange(video_stream)

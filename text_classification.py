@@ -72,10 +72,14 @@ class TextDetectionApp:
                 self.good_words_cache.add(text)
 
     def add_toxic_words(self):
-        with open('bad_en.txt', 'r') as file:
-            for line in file:
-                self.bad_words_cache.add(line.strip().lower())
-        print(self.bad_words_cache)
+        self.good_words_cache.add('you')
+
+        try:
+            with open('bad_en.txt', 'r') as file:
+                for line in file:
+                    self.bad_words_cache.add(line.strip().lower())
+        except:
+            pass
 
 if __name__ == '__main__':
     root = tk.Tk()

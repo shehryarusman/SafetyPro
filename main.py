@@ -1,4 +1,4 @@
-from app import TextDetectionApp
+from text_classification import TextDetectionApp
 from mainWindow import MainWindow
 import tkinter as tk
 
