@@ -33,7 +33,8 @@ def main():
     if tess_path:
         pytesseract.pytesseract.tesseract_cmd = tess_path 
     else:
-        pytesseract.pytesseract.tesseract_cmd ='C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
+        tess_path = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
+        pytesseract.pytesseract.tesseract_cmd =r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
 
     OCR.tesseract_location(tess_path)
     OCR.ocr_stream(view_mode=args.view_mode, source=args.src, crop=args.crop, language=args.language)

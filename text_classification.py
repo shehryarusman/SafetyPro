@@ -21,11 +21,14 @@ class TextDetectionApp:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
-        self.bad_phrase_cache = {}
+        self.bad_words_cache = set()
+        self.good_words_cache = set()
         self.nthreads = 12
-        self.pattern =  r"[a-zA-Z]+"
+        self.pattern =  re.compile(r"[a-zA-Z]+")
+        self.add_toxic_words()
 
     def detect_text(self, results):
+        tic = time.perf_counter()
         n_boxes = len(results['text'])
 
         words_index = []
@@ -45,25 +48,34 @@ class TextDetectionApp:
         for i in range(self.nthreads):
             t_threads[i].join()
             words_index += index_results[i]
-
+        print(f'Time to classify: {time.perf_counter() - tic}')
         return words_index
 
     def classify_thread_arr(self, text_arr, start, result):
         for i, text in enumerate(text_arr):
-            if text in self.bad_phrase_cache:
-                if self.bad_phrase_cache[text]:
-                    result.append(start + i)
+            if text in self.good_words_cache:
+                 continue
+            
+            if text.strip().lower() in self.bad_words_cache:
+                result.append(start + i)
                 continue
-
+            
             if not re.fullmatch(self.pattern, text):
-                self.bad_phrase_cache[text] = False
+                self.good_words_cache.add(text)
+                continue
 
             nlpResult = self.nlp(text)
             if ((nlpResult[0]['label']=='toxic') and nlpResult[0]['score']>0.80):
                 result.append(start + i)
-                self.bad_phrase_cache[text] = True
+                self.bad_words_cache.add(text)
             else:
-                self.bad_phrase_cache[text] = False
+                self.good_words_cache.add(text)
+
+    def add_toxic_words(self):
+        with open('bad_en.txt', 'r') as file:
+            for line in file:
+                self.bad_words_cache.add(line.strip().lower())
+        print(self.bad_words_cache)
 
 if __name__ == '__main__':
     root = tk.Tk()

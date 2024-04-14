@@ -28,7 +28,7 @@ import cv2
 import numpy
 import pytesseract
 
-from app import TextDetectionApp
+from text_classification import TextDetectionApp
 
 textDetectApp = TextDetectionApp()
 
@@ -342,7 +342,6 @@ def put_ocr_boxes(boxes, frame, height, width, crop_width=0, crop_height=0, view
         #             if int(float(conf)) > conf_thresh:
         #                 cv2.rectangle(transparent_img, (x, y), (w + x, h + y), color, thickness=1)
         #                 text = text + ' ' + word
-
     return transparent_img, text
 
 
@@ -417,10 +416,12 @@ class OverlayWindow(QMainWindow):
         qp = QPainter(self)
         if self.image:
             qp.drawImage(self.rect(), self.image)
+        
 
     def update_image(self, img):
         self.image = img
         self.update()
+        print("********* DRAWING BOXES *********")
 
 
 
@@ -473,6 +474,7 @@ class MainWindow(QMainWindow):
 def update_frame(video_stream, ocr, overlay_window, view_mode):
     while not video_stream.stopped and not ocr.stopped:
         frame = video_stream.frame
+        frame = cv2.resize(frame, (1920//2, 1080//2), interpolation=cv2.INTER_AREA)
         img_hi = video_stream.mon['height']
         img_wi = video_stream.mon['width']
         # print(ocr.boxes)
