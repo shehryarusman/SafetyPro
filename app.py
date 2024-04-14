@@ -10,10 +10,13 @@ import dxcam
 import threading
 import time
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+import re
 
 logging.basicConfig(level=logging.INFO)
 
+pattern = r"[a-zA-Z]+"
 nthreads = 12
+img_scale = 2
 
 class TextDetectionApp:
     def __init__(self, hide_func, clear_func, update_func):
@@ -45,7 +48,10 @@ class TextDetectionApp:
             self.update_func()
 
             tic = time.perf_counter()
-            results = pytesseract.image_to_data(cv2.cvtColor(camera.get_latest_frame(), cv2.COLOR_RGB2GRAY), output_type=pytesseract.Output.DICT)
+            img = camera.get_latest_frame()
+            img = cv2.resize(img, (1920//img_scale, 1080//img_scale), interpolation=cv2.INTER_LINEAR)
+
+            results = pytesseract.image_to_data(cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), output_type=pytesseract.Output.DICT)
             toc = time.perf_counter()
             print("Time to convert with get_latest_frame ", (toc - tic))
 
@@ -61,12 +67,16 @@ class TextDetectionApp:
             split = n_boxes // nthreads
             start = 0
 
+            print(n_boxes)
             for i in range(nthreads):
                 #print(f'Thread: {i} \nresults:{results['text'][start:(start + split)]} \nStart: {start} \nSplit: {split}')
                 if (i < (nthreads - 1)):
                     t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:(start + split)], start, index_results[i])))
                 else:
-                    t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:], start + (n_boxes % split), index_results[i])))
+                    if split == 0:
+                        t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:], start, index_results[i])))
+                    else:
+                        t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:], start, index_results[i])))
                 start += split
                 t_threads[i].start()
 
@@ -74,9 +84,13 @@ class TextDetectionApp:
                 t_threads[i].join()
                 words_index += index_results[i]
 
+            print(results['text'])
+
             self.clear_func()
             for i in words_index:
-                self.hide_func(results['left'][i], results['top'][i]+26, results['width'][i], results['height'][i])
+                if not re.fullmatch(pattern, results['text'][i]):
+                    continue
+                self.hide_func(results['left'][i]*img_scale, (results['top'][i] + results['height'][i]) * img_scale, results['width'][i] * img_scale, results['height'][i] * img_scale)
             toc = time.perf_counter()
             print("Time to parse ", (toc - tic))
         camera.stop()
