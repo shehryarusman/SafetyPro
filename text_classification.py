@@ -48,7 +48,7 @@ class TextDetectionApp:
         for i in range(self.nthreads):
             t_threads[i].join()
             words_index += index_results[i]
-        print(f'Time to classify: {time.perf_counter() - tic}')
+        #print(f'Time to classify: {time.perf_counter() - tic}')
         return words_index
 
     def classify_thread_arr(self, text_arr, start, result):
