@@ -40,19 +40,7 @@ def tesseract_location(root):
 
 
 class RateCounter:
-    """
-    Class for finding the iterations/second of a process
-
-    `Attributes:`
-        start_time: indicates when the time.perf_counter() began
-        iterations: determines number of iterations in the process
-
-    `Methods:`
-        start(): Starts a time.perf_counter() and sets it in the self.start_time attribute
-        increment(): Increases the self.iterations attribute
-        rate(): Returns the iterations/seconds
-    """
-
+    
     def __init__(self):
         self.start_time = None
         self.iterations = 0
