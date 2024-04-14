@@ -29,7 +29,6 @@ Safety Pro uses several dependencies that need to be installed. Fortunately, all
 
 
 ``` bash
-Copy code
 pip install -r requirements.txt
 Running Safety Pro
 ```
@@ -37,7 +36,6 @@ Running Safety Pro
 To start using Safety Pro, navigate to the project directory if you're not already there, and run the following command:
 
 ``` bash
-Copy code
 python safety_pro.py
 ```
 
@@ -53,10 +51,10 @@ Contributions are what make the open-source community such an amazing place to l
 
 ### Fork the Project
 
-Create your Feature Branch (git checkout -b feature/AmazingFeature)
-Commit your Changes (git commit -m 'Add some AmazingFeature')
-Push to the Branch (git push origin feature/AmazingFeature)
-Open a Pull Request
+1. Create your Feature Branch (git checkout -b feature/AmazingFeature)
+2. Commit your Changes (git commit -m 'Add some AmazingFeature')
+3. Push to the Branch (git push origin feature/AmazingFeature)
+4. Open a Pull Request
 
 ### License
 
