@@ -6,19 +6,20 @@ import cv2
 import numpy as np
 import pytesseract
 import pyautogui
+import dxcam
 import threading
+import time
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 logging.basicConfig(level=logging.INFO)
 
-class TextDetectionApp:
-    def __init__(self, hide_func):
-        self.hide_func = hide_func
-        # self.master = master
-        # master.title("Real-Time Text Detection")
+nthreads = 12
 
-        self.active = False
-        self.thread = None  
+class TextDetectionApp:
+    def __init__(self, hide_func, clear_func, update_func):
+        self.hide_func = hide_func
+        self.clear_func = clear_func
+        self.update_func = update_func
 
         tesseract_path = shutil.which("tesseract")
         if tesseract_path:
@@ -26,83 +27,65 @@ class TextDetectionApp:
         else:
             pytesseract.pytesseract.tesseract_cmd ='C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
 
-        model_name = "michellejieli/NSFW_text_classifier"
+        model_name = "JungleLee/bert-toxic-comment-classification"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
         self.nlp = pipeline("text-classification", model=self.model, tokenizer=self.tokenizer)
 
-        print("Run")
-        self.start_detection()
-
-
-        # self.label = ttk.Label(master, text="Real-Time Text Detection", font=("Helvetica", 14))
-        # self.label.pack(pady=10)
-
-        # self.start_button = ttk.Button(master, text="Start", command=self.start_detection)
-        # self.start_button.pack(pady=5)
-
-        # self.stop_button = ttk.Button(master, text="Stop", command=self.stop_detection, state='disabled')
-        # self.stop_button.pack(pady=5)
-
-
-    def start_detection(self):
-        # self.start_button['state'] = 'disabled'
-        # self.stop_button['state'] = 'normal'
         self.active = True
-        self.detect_text() # Testing code
-        #self.thread = threading.Thread(target=self.detect_text)
-        #self.thread.start()
+        self.detect_text()
 
     def stop_detection(self):
         self.active = False
-        #self.thread.join()
-        # self.start_button['state'] = 'normal'
-        # self.stop_button['state'] = 'disabled'
 
     def detect_text(self):
+        camera = dxcam.create()
+        camera.start()
         while self.active:
-            print("Running")
-            screenshot = pyautogui.screenshot()
-            frame = np.array(screenshot)
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            results = pytesseract.image_to_data(frame, output_type=pytesseract.Output.DICT)
+            self.update_func()
+
+            tic = time.perf_counter()
+            results = pytesseract.image_to_data(cv2.cvtColor(camera.get_latest_frame(), cv2.COLOR_RGB2GRAY), output_type=pytesseract.Output.DICT)
+            toc = time.perf_counter()
+            print("Time to convert with get_latest_frame ", (toc - tic))
+
+            tic = time.perf_counter()
+
             n_boxes = len(results['text'])
-            current_line_text = ""
-            toHide = False
-            last_y = 0
-            for i in range(n_boxes):
-                if int(results['conf'][i]) > 60:
-                    if abs(last_y - results['top'][i]) > 10:
-                        if current_line_text:
-                            self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
-                        current_line_text = results['text'][i]
-                    else:
-                        current_line_text += " " + results['text'][i]
-                    
-                    last_x, last_y, last_w, last_h = results['left'][i], results['top'][i], results['width'][i], results['height'][i]
-            
-            if current_line_text:
-                toHide = self.classify_and_log_text(current_line_text, last_x, last_y, last_w, last_h)
+            texts = results['text']
+            texts = list(filter(None, texts))
 
-            if toHide and self.hide_func != None:
-                self.hide_func(last_x, last_y, last_w, last_h)
-            
+            words_index = []
+            t_threads = []
+            index_results = [[] for i in range(nthreads)]
+            split = n_boxes // nthreads
+            start = 0
 
-    def classify_and_log_text(self, text, x, y, w, h):
-        logging.info(text)
-        if self.is_inappropriate(text):
-            logging.info(f"Inappropriate text detected: {text} at position ({x}, {y}, {w}, {h})")
-            return True
-        else:
-            logging.info("Appropriate text detected: " + text)
-            return False
+            for i in range(nthreads):
+                #print(f'Thread: {i} \nresults:{results['text'][start:(start + split)]} \nStart: {start} \nSplit: {split}')
+                if (i < (nthreads - 1)):
+                    t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:(start + split)], start, index_results[i])))
+                else:
+                    t_threads.append(threading.Thread(target=self.classify_thread_arr(results['text'][start:], start + (n_boxes % split), index_results[i])))
+                start += split
+                t_threads[i].start()
 
-    def is_inappropriate(self, text):
-        if text.strip():
-            results = self.nlp(text)
-            if (results[0]['label']=='NSFW') and results[0]['score']>0.75:
-                return True
-        return False
+            for i in range(nthreads):
+                t_threads[i].join()
+                words_index += index_results[i]
+
+            self.clear_func()
+            for i in words_index:
+                self.hide_func(results['left'][i], results['top'][i]+26, results['width'][i], results['height'][i])
+            toc = time.perf_counter()
+            print("Time to parse ", (toc - tic))
+        camera.stop()
+
+    def classify_thread_arr(self, text_arr, start, result):
+        for i, text in enumerate(text_arr):
+            nlpResult = self.nlp(text)
+            if ((nlpResult[0]['label']=='toxic') and nlpResult[0]['score']>0.80):
+                result.append(start + i)
 
 if __name__ == '__main__':
     root = tk.Tk()
